@@ -1,4 +1,4 @@
-# Contextuaize
+# ContextuAIze
 
 **Smart codebase context extraction for LLMs** — Transform your codebase into optimized context for Claude, GPT-4, Gemini, and other large language models.
 
