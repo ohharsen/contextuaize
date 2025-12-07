@@ -47,6 +47,11 @@ BINARY_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.ico', '.webp', '.svg',
 # Default output filename
 DEFAULT_OUTPUT = 'codebase_context.txt'
 
+# Output modes
+OUTPUT_FILE = 'file'
+OUTPUT_CLIPBOARD = 'clipboard'
+OUTPUT_STDOUT = 'stdout'
+
 # Size thresholds
 MAX_FILE_SIZE = 100 * 1024  # 100KB - files larger than this get summarized in smart mode
 LARGE_FILE_THRESHOLD = 50 * 1024  # 50KB - warn about large files
@@ -516,23 +521,24 @@ class ContextBuilder:
         self.llm = llm
         self.smart_filter = SmartFilter(llm) if smart_mode and llm else None
     
-    def build(self, project: ProjectStructure, output_path: str, query: str = None) -> int:
-        """Build context file and return file count."""
+    def build(self, project: ProjectStructure, output_path: str = None, 
+              query: str = None, output_mode: str = OUTPUT_FILE) -> Tuple[int, str]:
+        """Build context and return (file_count, content)."""
         
         files = project.files
         
         # Apply smart filtering if enabled
         if self.smart_filter:
-            print("🧠 Analyzing project with LLM...")
+            print("🧠 Analyzing project with LLM...", file=sys.stderr)
             files = self.smart_filter.filter_by_relevance(project, query)
-            print(f"   Selected {len(files)} relevant files")
+            print(f"   Selected {len(files)} relevant files", file=sys.stderr)
         
         # Read and optionally summarize files
         for file_info in files:
             content = self._read_file(file_info.path)
             
             if self.smart_mode and self.llm and file_info.size > MAX_FILE_SIZE:
-                print(f"📝 Summarizing large file: {file_info.relative_path}")
+                print(f"📝 Summarizing large file: {file_info.relative_path}", file=sys.stderr)
                 file_info.content = content
                 file_info.summary = self.smart_filter.summarize_large_file(file_info)
             else:
@@ -541,13 +547,47 @@ class ContextBuilder:
             # Parse imports for context
             file_info.imports = ImportParser.parse_imports(file_info.path, content)
         
-        # Write output
-        with open(output_path, 'w', encoding='utf-8') as outfile:
-            self._write_header(outfile, project, query)
-            self._write_structure(outfile, project)
-            self._write_files(outfile, files)
+        # Build content string
+        import io
+        buffer = io.StringIO()
+        self._write_header(buffer, project, query)
+        self._write_structure(buffer, project)
+        self._write_files(buffer, files)
+        content = buffer.getvalue()
         
-        return len(files)
+        # Output based on mode
+        if output_mode == OUTPUT_STDOUT:
+            print(content)
+        elif output_mode == OUTPUT_CLIPBOARD:
+            self._copy_to_clipboard(content)
+        elif output_mode == OUTPUT_FILE and output_path:
+            with open(output_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+        
+        return len(files), content
+    
+    def _copy_to_clipboard(self, content: str):
+        """Copy content to system clipboard."""
+        system = sys.platform
+        
+        try:
+            if system == 'darwin':  # macOS
+                subprocess.run(['pbcopy'], input=content.encode('utf-8'), check=True)
+            elif system == 'win32':  # Windows
+                subprocess.run(['clip'], input=content.encode('utf-16'), check=True)
+            else:  # Linux/Unix
+                # Try xclip first, then xsel, then wl-copy (Wayland)
+                for cmd in [['xclip', '-selection', 'clipboard'], 
+                            ['xsel', '--clipboard', '--input'],
+                            ['wl-copy']]:
+                    try:
+                        subprocess.run(cmd, input=content.encode('utf-8'), check=True)
+                        return
+                    except FileNotFoundError:
+                        continue
+                raise RuntimeError("No clipboard tool found. Install xclip, xsel, or wl-copy")
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(f"Failed to copy to clipboard: {e}")
     
     def _read_file(self, filepath: str) -> str:
         try:
@@ -611,8 +651,11 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  contextuaize                          # Basic scan of current directory
+  contextuaize                          # Basic scan → codebase_context.txt
   contextuaize ./my-project -o ctx.txt  # Scan specific directory
+  contextuaize -c                       # Copy to clipboard
+  contextuaize --stdout                 # Print to stdout (pipe-friendly)
+  contextuaize --stdout | pbcopy        # Pipe to clipboard (macOS)
   contextuaize --smart                  # Use LLM for intelligent filtering
   contextuaize --smart --query "auth"   # Focus on authentication-related code
   contextuaize --include "*.py"         # Only Python files
@@ -649,6 +692,13 @@ Examples:
     parser.add_argument('--tree-only', action='store_true',
                         help='Only output the project tree, no file contents')
     
+    # Output destination (mutually exclusive)
+    output_group = parser.add_mutually_exclusive_group()
+    output_group.add_argument('-c', '--clipboard', action='store_true',
+                              help='Copy output to clipboard instead of file')
+    output_group.add_argument('--stdout', action='store_true',
+                              help='Print output to stdout instead of file')
+    
     args = parser.parse_args()
     
     # Validate arguments
@@ -668,7 +718,7 @@ Examples:
     
     # Scan directory
     if not args.quiet:
-        print(f"🚀 Scanning: {os.path.abspath(args.directory)}")
+        print(f"🚀 Scanning: {os.path.abspath(args.directory)}", file=sys.stderr)
     
     scanner = FileScanner(
         root_dir=args.directory,
@@ -680,28 +730,48 @@ Examples:
     project = scanner.scan()
     
     if not args.quiet:
-        print(f"   Found {len(project.files)} files")
+        print(f"   Found {len(project.files)} files", file=sys.stderr)
         if project.detected_stack:
-            print(f"   Detected: {', '.join(project.detected_stack)}")
+            print(f"   Detected: {', '.join(project.detected_stack)}", file=sys.stderr)
     
     # Handle tree-only mode
     if args.tree_only:
-        print("\n" + project.tree)
+        print(project.tree)
         return
+    
+    # Determine output mode
+    if args.clipboard:
+        output_mode = OUTPUT_CLIPBOARD
+    elif args.stdout:
+        output_mode = OUTPUT_STDOUT
+    else:
+        output_mode = OUTPUT_FILE
     
     # Build context
     builder = ContextBuilder(smart_mode=args.smart, llm=llm)
     
     try:
-        file_count = builder.build(project, args.output, query=args.query)
+        file_count, content = builder.build(
+            project, 
+            args.output, 
+            query=args.query,
+            output_mode=output_mode
+        )
     except Exception as e:
-        print(f"Error building context: {e}")
+        print(f"Error building context: {e}", file=sys.stderr)
         sys.exit(1)
     
     if not args.quiet:
-        output_size = os.path.getsize(args.output)
-        size_str = f"{output_size / 1024:.1f}KB" if output_size < 1024*1024 else f"{output_size / (1024*1024):.1f}MB"
-        print(f"\n✅ Done! {file_count} files → '{args.output}' ({size_str})")
+        if output_mode == OUTPUT_CLIPBOARD:
+            size_str = f"{len(content) / 1024:.1f}KB" if len(content) < 1024*1024 else f"{len(content) / (1024*1024):.1f}MB"
+            print(f"\n✅ Done! {file_count} files → clipboard ({size_str})", file=sys.stderr)
+        elif output_mode == OUTPUT_FILE:
+            output_size = os.path.getsize(args.output)
+            size_str = f"{output_size / 1024:.1f}KB" if output_size < 1024*1024 else f"{output_size / (1024*1024):.1f}MB"
+            print(f"\n✅ Done! {file_count} files → '{args.output}' ({size_str})", file=sys.stderr)
+        elif output_mode == OUTPUT_STDOUT:
+            size_str = f"{len(content) / 1024:.1f}KB" if len(content) < 1024*1024 else f"{len(content) / (1024*1024):.1f}MB"
+            print(f"\n✅ Done! {file_count} files ({size_str})", file=sys.stderr)
 
 if __name__ == "__main__":
     main()

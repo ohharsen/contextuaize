@@ -109,10 +109,38 @@ Smart Mode:
   --api-key KEY          Anthropic API key (or use ANTHROPIC_API_KEY env)
   --model MODEL          Model to use (default: claude-sonnet-4-20250514)
   
-Output:
+Output Destination (mutually exclusive):
+  -o, --output FILE      Write to file (default)
+  -c, --clipboard        Copy to system clipboard
+  --stdout               Print to stdout (for piping)
+  
+Output Control:
   --quiet                Suppress progress output
   --tree-only            Only show project tree, no file contents
 ```
+
+## Output Modes
+
+### File (default)
+```bash
+contextuaize                    # → codebase_context.txt
+contextuaize -o context.txt     # → context.txt
+```
+
+### Clipboard
+```bash
+contextuaize -c                 # Copy directly to clipboard
+contextuaize --clipboard        # Same thing
+```
+Works on macOS (pbcopy), Windows (clip), and Linux (xclip/xsel/wl-copy).
+
+### Stdout
+```bash
+contextuaize --stdout           # Print to stdout
+contextuaize --stdout | head    # Pipe to other commands
+contextuaize --stdout | pbcopy  # Manual clipboard on macOS
+```
+Progress messages go to stderr, so piping works cleanly.
 
 ## Examples
 
