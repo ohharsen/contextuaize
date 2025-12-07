@@ -20,3 +20,57 @@ If you have cloned this repository locally and want to modify the code:
 git clone [https://github.com/ohharsen/contextuaize.git](https://github.com/ohharsen/contextuaize.git)
 cd contextuaize
 pip install -e .
+```
+
+### Option 2: Install directly from GitHub
+To install it on any machine without cloning the repo manually:
+
+```bash
+pip install git+[https://github.com/ohharsen/contextuaize.git](https://github.com/ohharsen/contextuaize.git)
+```
+
+## 🛠 Usage
+
+Once installed, the command `contextuaize` is available globally in your terminal.
+
+### 1. Basic Usage
+Navigate to the root of the project you want to capture and run:
+
+```bash
+contextuaize
+```
+*This will generate `codebase_context.txt` in the current directory.*
+
+### 2. Specifying Paths and Output
+You can point to a specific directory and customize the output filename:
+
+```bash
+# Scan a specific project folder and save the output to your Desktop
+contextuaize /Users/arsen/my-react-project -o ~/Desktop/full_context.txt
+```
+
+### 3. Usage with LLMs
+1. Run the tool.
+2. Upload the resulting `.txt` file to Claude/ChatGPT.
+3. Use a prompt like:
+   > "I have attached a snapshot of my full-stack codebase. Please parse this to understand the current architecture, component structure, and backend logic. Wait for my next instruction."
+
+## ⚙️ Configuration
+
+Currently, the ignored directories and included file extensions are defined in `src/contextuaize.py`. 
+
+To add custom file extensions (e.g., `.rust`, `.go`), edit the `INCLUDE_EXTENSIONS` set in the source code:
+
+```python
+INCLUDE_EXTENSIONS = {
+    '.py', '.js', '.tsx', ... # Add your extensions here
+}
+```
+
+## 📝 License
+
+Distributed under the MIT License. See `LICENSE` for more information.
+
+---
+**Author:** Arsen Ohanyan  
+[GitHub Profile](https://github.com/ohharsen)
