@@ -1,76 +1,212 @@
 # Contextuaize
 
-**Contextuaize** is a CLI tool designed to streamline "Context Window Engineering." It crawls a local codebase, filters for relevant files (ignoring `node_modules`, `.git`, etc.), and concatenates them into a single, formatted text file. 
+**Smart codebase context extraction for LLMs** — Transform your codebase into optimized context for Claude, GPT-4, Gemini, and other large language models.
 
-This output is optimized for "reinjecting" your project context into Large Language Models like **Claude Opus**, **GPT-4**, or **Gemini** so they can understand your full stack architecture.
+## What's New in v0.2
 
-## 🚀 Features
+- **🧠 Smart Mode** — LLM-powered intelligent file filtering
+- **🎯 Query-Driven Context** — Focus on specific features or tasks
+- **📝 Auto-Summarization** — Large files get smart summaries
+- **🔍 Respects .gitignore** — No more manual exclusion lists
+- **🌳 Tech Stack Detection** — Automatically identifies your stack
 
-- **Smart Filtering:** Automatically ignores system directories (`__pycache__`, `.git`), dependencies (`node_modules`, `venv`), and lockfiles.
-- **Multi-Language Support:** Captures Python, JavaScript, TypeScript, React, HTML/CSS, Config files, and Dockerfiles out of the box.
-- **LLM-Friendly Format:** Wraps file contents in clear headers so the AI understands file boundaries and paths.
-- **CLI based:** Run it from anywhere on your machine.
+## Features
 
-## 📦 Installation
+| Feature | Basic Mode | Smart Mode (`--smart`) |
+|---------|------------|------------------------|
+| .gitignore support | ✅ | ✅ |
+| Binary file filtering | ✅ | ✅ |
+| Directory tree | ✅ | ✅ |
+| Stack detection | ✅ | ✅ |
+| Intelligent file selection | ❌ | ✅ |
+| Query-driven filtering | ❌ | ✅ |
+| Large file summarization | ❌ | ✅ |
 
-### Option 1: Development / Local Install
-If you have cloned this repository locally and want to modify the code:
+## Installation
 
 ```bash
-git clone [https://github.com/ohharsen/contextuaize.git](https://github.com/ohharsen/contextuaize.git)
+# From GitHub
+pip install git+https://github.com/ohharsen/contextuaize.git
+
+# Local development
+git clone https://github.com/ohharsen/contextuaize.git
 cd contextuaize
 pip install -e .
 ```
 
-### Option 2: Install directly from GitHub
-To install it on any machine without cloning the repo manually:
+## Quick Start
+
+### Basic Usage
 
 ```bash
-pip install git+[https://github.com/ohharsen/contextuaize.git](https://github.com/ohharsen/contextuaize.git)
-```
-
-## 🛠 Usage
-
-Once installed, the command `contextuaize` is available globally in your terminal.
-
-### 1. Basic Usage
-Navigate to the root of the project you want to capture and run:
-
-```bash
+# Scan current directory
 contextuaize
-```
-*This will generate `codebase_context.txt` in the current directory.*
 
-### 2. Specifying Paths and Output
-You can point to a specific directory and customize the output filename:
+# Scan specific project
+contextuaize /path/to/project -o context.txt
+
+# Only Python files
+contextuaize --include "*.py"
+
+# Exclude tests
+contextuaize --exclude "test*" --exclude "*_test.py"
+
+# Just see the tree structure
+contextuaize --tree-only
+```
+
+### Smart Mode (LLM-Powered)
+
+Smart mode uses Claude to intelligently select relevant files and summarize large ones.
 
 ```bash
-# Scan a specific project folder and save the output to your Desktop
-contextuaize /Users/arsen/my-react-project -o ~/Desktop/full_context.txt
+# Set your API key
+export ANTHROPIC_API_KEY="sk-ant-..."
+
+# Let AI decide what's important
+contextuaize --smart
+
+# Focus on specific functionality
+contextuaize --smart --query "authentication and user sessions"
+
+# Focus on a bug
+contextuaize --smart --query "database connection handling"
 ```
 
-### 3. Usage with LLMs
-1. Run the tool.
-2. Upload the resulting `.txt` file to Claude/ChatGPT.
-3. Use a prompt like:
-   > "I have attached a snapshot of my full-stack codebase. Please parse this to understand the current architecture, component structure, and backend logic. Wait for my next instruction."
+## How It Works
 
-## ⚙️ Configuration
+### Basic Mode
+1. Walks the directory tree
+2. Respects `.gitignore` rules automatically
+3. Skips universal noise (node_modules, .git, lockfiles, binaries)
+4. Concatenates all text files with clear markers
 
-Currently, the ignored directories and included file extensions are defined in `src/contextuaize.py`. 
+### Smart Mode
+1. **Two-pass scanning**: First scans structure, then uses LLM to select files
+2. **Relevance scoring**: Files ranked as essential → important → optional → skip
+3. **Query-driven**: When you specify `--query`, only files relevant to that task are included
+4. **Smart summarization**: Files over 100KB get intelligent summaries instead of full content
 
-To add custom file extensions (e.g., `.rust`, `.go`), edit the `INCLUDE_EXTENSIONS` set in the source code:
+## CLI Reference
 
-```python
-INCLUDE_EXTENSIONS = {
-    '.py', '.js', '.tsx', ... # Add your extensions here
-}
+```
+contextuaize [directory] [options]
+
+Arguments:
+  directory              Directory to scan (default: current directory)
+
+Options:
+  -o, --output FILE      Output file path (default: codebase_context.txt)
+  
+Filtering:
+  --include PATTERN      Include only matching files (can repeat)
+  --exclude PATTERN      Exclude matching files (can repeat)
+  --no-gitignore         Ignore .gitignore rules
+  
+Smart Mode:
+  --smart                Enable LLM-powered intelligent filtering
+  --query, -q TEXT       Focus on specific task/feature (enables --smart)
+  --api-key KEY          Anthropic API key (or use ANTHROPIC_API_KEY env)
+  --model MODEL          Model to use (default: claude-sonnet-4-20250514)
+  
+Output:
+  --quiet                Suppress progress output
+  --tree-only            Only show project tree, no file contents
 ```
 
-## 📝 License
+## Examples
 
-Distributed under the MIT License. See `LICENSE` for more information.
+### Understanding a New Codebase
+```bash
+contextuaize --smart --query "explain the overall architecture"
+```
+
+### Preparing to Add a Feature  
+```bash
+contextuaize --smart --query "payment processing and Stripe integration"
+```
+
+### Debugging an Issue
+```bash
+contextuaize --smart --query "WebSocket connection handling and reconnection logic"
+```
+
+### Code Review Context
+```bash
+contextuaize --smart --query "user authentication flow"
+```
+
+### Just the Backend
+```bash
+contextuaize --include "*.py" --exclude "test*" --exclude "migrations/*"
+```
+
+## Output Format
+
+The generated context file includes:
+
+```
+================================================================================
+PROJECT CONTEXT SNAPSHOT
+================================================================================
+
+Detected Stack: Python, React, Docker
+Context Focus: authentication flow
+Total Files: 15
+
+PROJECT STRUCTURE
+----------------------------------------
+my-project/
+├── src/
+│   ├── auth/
+│   │   ├── login.py
+│   │   └── session.py
+│   └── api/
+│       └── routes.py
+└── tests/
+
+================================================================================
+FILE CONTENTS
+================================================================================
+
+--- START FILE: src/auth/login.py ---
+[file content or summary]
+--- END FILE: src/auth/login.py ---
+
+...
+```
+
+## Configuration
+
+### Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `ANTHROPIC_API_KEY` | API key for smart mode |
+
+### Patterns
+
+Both `--include` and `--exclude` support glob patterns:
+
+- `*.py` — All Python files
+- `test*` — Files/dirs starting with "test"
+- `src/**/*.ts` — TypeScript files in src/
+- `!important.py` — Negation (in .gitignore)
+
+## Using with LLMs
+
+After generating context, upload to your LLM with a prompt like:
+
+> "I've attached my project context. Please analyze the architecture and wait for my questions."
+
+Or for focused tasks:
+
+> "Here's context focused on authentication. Help me add OAuth2 support."
+
+## License
+
+MIT License — see [LICENSE](LICENSE) for details.
 
 ---
-**Author:** Arsen Ohanyan  
-[GitHub Profile](https://github.com/ohharsen)
+
+**Author:** Arsen Ohanyan • [GitHub](https://github.com/ohharsen)
