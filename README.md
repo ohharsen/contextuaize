@@ -1,5 +1,9 @@
 # ContextuAIze
 
+[![PyPI version](https://badge.fury.io/py/contextuaize.svg)](https://pypi.org/project/contextuaize/)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 **Smart codebase context extraction for LLMs** — Transform your codebase into optimized context for Claude, GPT-4, Gemini, and other large language models.
 
 ## What's New in v0.2
@@ -25,10 +29,12 @@
 ## Installation
 
 ```bash
-# From GitHub
-pip install git+https://github.com/ohharsen/contextuaize.git
+pip install contextuaize
+```
 
-# Local development
+Or install from source:
+
+```bash
 git clone https://github.com/ohharsen/contextuaize.git
 cd contextuaize
 pip install -e .
@@ -237,4 +243,8 @@ MIT License — see [LICENSE](LICENSE) for details.
 
 ---
 
+<<<<<<< Updated upstream
 **Author:** Arsen Ohanyan • [GitHub](https://github.com/ohharsen)
+=======
+**Author:** Arsen Ohanyan • [GitHub](https://github.com/ohharsen) • [PyPI](https://pypi.org/project/contextuaize/)
+>>>>>>> Stashed changes
